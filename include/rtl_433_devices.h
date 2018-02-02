@@ -80,8 +80,29 @@
 		DECL(acurite_00275rm) \
 		DECL(lacrosse_tx35) \
 		DECL(lacrosse_tx29) \
+		DECL(vaillant_vrt340f) \
 		DECL(fineoffset_WH25) \
-		DECL(fineoffset_WH0530)
+		DECL(fineoffset_WH0530) \
+		DECL(ibis_beacon) \
+		DECL(oil_standard) \
+		DECL(tpms_citroen) \
+		DECL(oil_standard_ask) \
+		DECL(thermopro_tp11) \
+		DECL(solight_te44) \
+		DECL(smoke_gs558) \
+		DECL(generic_motion) \
+		DECL(tpms_toyota) \
+		DECL(tpms_ford) \
+		DECL(tpms_renault) \
+		DECL(infactory) \
+		DECL(ft004b) \
+		DECL(fordremote) \
+		DECL(philips) \
+		DECL(schrader_EG53MA4) \
+		DECL(nexa) \
+		DECL(thermopro_tp12) \
+		DECL(ge_coloreffects) \
+		DECL(x10_sec)
 
 typedef struct {
 	char name[256];
@@ -89,9 +110,12 @@ typedef struct {
 	float short_limit;
 	float long_limit;
 	float reset_limit;
+	float gap_limit;
+    float sync_width;
+    float tolerance;
 	int (*json_callback)(bitbuffer_t *bitbuffer);
 	unsigned int disabled;
-	uintptr_t demod_arg;	// Decoder specific optional argument (may be pointer to struct)
+	unsigned demod_arg;	// Decoder specific optional argument
 	char **fields;			// List of fields this decoder produces; required for CSV output. NULL-terminated.
 } r_device;
 

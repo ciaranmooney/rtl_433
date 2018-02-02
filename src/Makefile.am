@@ -9,7 +9,9 @@ rtl_433_SOURCES      = baseband.c \
                        pulse_demod.c \
                        pulse_detect.c \
                        rtl_433.c \
+                       optparse.c \
                        util.c \
+                       devices/flex.c \
                        devices/acurite.c \
                        devices/alecto.c \
                        devices/ambient_weather.c \
@@ -30,9 +32,10 @@ rtl_433_SOURCES      = baseband.c \
                        devices/esperanza_ews.c \
                        devices/fineoffset.c \
                        devices/fineoffset_wh1080.c \
+                       devices/ft004b.c \
+                       devices/ge_coloreffects.c \
                        devices/generic_remote.c \
                        devices/generic_temperature_sensor.c \
-                       devices/generic_temperature_sensor_2.c \
                        devices/gt_wt_02.c \
                        devices/hideki.c \
                        devices/hondaremote.c \
@@ -43,7 +46,7 @@ rtl_433_SOURCES      = baseband.c \
                        devices/lacrosse.c \
                        devices/lacrosse_TX141TH_Bv2.c \
                        devices/lacrossews.c \
-		       devices/lacrosse_tx35.c \
+		               devices/lacrosse_tx35.c \
                        devices/lightwave_rf.c \
                        devices/mebus.c \
                        devices/newkaku.c \
@@ -76,6 +79,24 @@ rtl_433_SOURCES      = baseband.c \
                        devices/fineoffset_wh1050.c \
                        devices/honeywell.c \
                        devices/maverick_et73x.c \
-                       devices/rftech.c
+                       devices/rftech.c \
+                       devices/vaillant_vrt340f.c \
+                       devices/wg_pb12v1.c \
+                       devices/ibis_beacon.c \
+                       devices/oil_standard.c \
+                       devices/tpms_citroen.c \
+                       devices/thermopro_tp11.c \
+                       devices/solight_te44.c \
+                       devices/smoke_gs558.c \
+                       devices/generic_motion.c \
+                       devices/tpms_toyota.c \
+                       devices/tpms_ford.c \
+                       devices/tpms_renault.c \
+                       devices/infactory.c \
+                       devices/fordremote.c \
+                       devices/philips.c \
+                       devices/nexa.c \
+                       devices/thermopro_tp12.c \
+                       devices/x10_sec.c
 
 rtl_433_LDADD        = $(LIBRTLSDR) $(LIBM)

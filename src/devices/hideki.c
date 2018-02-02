@@ -117,11 +117,6 @@ static int hideki_ts04_callback(bitbuffer_t *bitbuffer) {
     return 0;
 }
 
-PWM_Precise_Parameters hideki_ts04_clock_bits_parameters = {
-   .pulse_tolerance    = 60,
-   .pulse_sync_width    = 0,    // No sync bit used
-};
-
 static char *output_fields[] = {
     "time",
     "model",
@@ -138,12 +133,13 @@ static char *output_fields[] = {
 
 r_device hideki_ts04 = {
     .name           = "HIDEKI TS04 Temperature, Humidity, Wind and Rain Sensor",
-    .modulation     = OOK_PULSE_CLOCK_BITS,
-    .short_limit    = 520,
-    .long_limit     = 1040, // not used
+    .modulation     = OOK_PULSE_DMC,
+    .short_limit    = 520,  // half-bit width 520 us
+    .long_limit     = 1040, // bit width 1040 us
     .reset_limit    = 4000,
+    .tolerance      = 240, // us
     .json_callback  = &hideki_ts04_callback,
     .disabled       = 0,
-    .demod_arg     = (uintptr_t)&hideki_ts04_clock_bits_parameters,
+    .demod_arg      = 0,
     .fields         = output_fields,
 };

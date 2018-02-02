@@ -16,14 +16,16 @@
 ########################################################################
 # Build utility
 ########################################################################
-add_executable(rtl_433 
+add_executable(rtl_433
 	baseband.c
 	bitbuffer.c
 	data.c
 	pulse_demod.c
 	pulse_detect.c
 	rtl_433.c
+	optparse.c
 	util.c
+	devices/flex.c
 	devices/acurite.c
 	devices/alecto.c
 	devices/ambient_weather.c
@@ -42,6 +44,8 @@ add_executable(rtl_433
 	devices/esperanza_ews.c
 	devices/fineoffset.c
 	devices/fineoffset_wh1080.c
+	devices/ft004b.c
+	devices/ge_coloreffects.c
 	devices/generic_remote.c
 	devices/generic_temperature_sensor.c
 	devices/gt_wt_02.c
@@ -91,21 +95,40 @@ add_executable(rtl_433
 	devices/maverick_et73x.c
 	devices/rftech.c
 	devices/lacrosse_tx35.c
-
+	devices/vaillant_vrt340f.c
+	devices/ibis_beacon.c
+	devices/oil_standard.c
+	devices/tpms_citroen.c
+	devices/thermopro_tp11.c
+	devices/solight_te44.c
+	devices/smoke_gs558.c
+	devices/generic_motion.c
+	devices/tpms_toyota.c
+	devices/tpms_ford.c
+	devices/tpms_renault.c
+	devices/infactory.c
+	devices/fordremote.c
+	devices/philips.c
+	devices/nexa.c
+	devices/thermopro_tp12.c
+	devices/x10_sec.c
 )
 
 add_library(data data.c)
 
 target_link_libraries(rtl_433
-	${LIBRTLSDR_LIBRARIES}
+	${SDR_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT}
 )
 
-	
+
 set(INSTALL_TARGETS rtl_433)
 if(UNIX)
 target_link_libraries(rtl_433 m)
 endif()
+
+# Explicitly say that we want C99
+set_property(TARGET rtl_433 PROPERTY C_STANDARD 99)
 
 ########################################################################
 # Install built library files & utilities

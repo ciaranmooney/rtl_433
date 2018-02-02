@@ -2,6 +2,7 @@
  *
  * The protocol is for the wireless Temperature/Humidity sensor
  * Bresser Thermo-/Hygro-Sensor 3CH
+ * also works for Renkforce DM-7511
  *
  * The sensor sends 15 identical packages of 40 bits each ~60s.
  * The bits are PWM modulated with On Off Keying.
@@ -27,23 +28,19 @@
 #include "data.h"
 
 static int bresser_3ch_callback(bitbuffer_t *bitbuffer) {
-    bitrow_t *bb = bitbuffer->bb;
-    data_t *data;
     char time_str[LOCAL_TIME_BUFLEN];
+    data_t *data;
+    uint8_t *b;
 
     int id, status, battery_low, test, channel, temp_raw, humidity;
     float temp_f;
 
-    /* note:
-       4 double wide sync pulses each go to an own row, the rows length will be
-       1 1 1 1 41 1 1 1 1 41 1 1 1 1 41 1 1 1 1 41 1 1 1 1 491
-     */
     int r = bitbuffer_find_repeated_row(bitbuffer, 3, 40);
-    if (r < 0 || bitbuffer->bits_per_row[r] > 41) {
+    if (r < 0 || bitbuffer->bits_per_row[r] > 42) {
         return 0;
     }
 
-    uint8_t *b = bb[r];
+    b = bitbuffer->bb[r];
     b[0] = ~b[0];
     b[1] = ~b[1];
     b[2] = ~b[2];
@@ -77,14 +74,16 @@ static int bresser_3ch_callback(bitbuffer_t *bitbuffer) {
     }
 
     local_time_str(0, time_str);
-    data = data_make("time",          "",            DATA_STRING, time_str,
-                     "model",         "",            DATA_STRING, "Bresser 3CH sensor",
-                     "id",            "",            DATA_INT, id,
-                     "channel",       "Channel",     DATA_INT, channel,
-                     "battery",       "Battery",     DATA_STRING, battery_low ? "LOW": "OK",
-                     "temperature_F", "Temperature", DATA_FORMAT, "%.2f F", DATA_DOUBLE, temp_f,
-                     "humidity",      "Humidity",    DATA_FORMAT, "%u %%", DATA_INT, humidity,
-                     NULL);
+    data = data_make(
+            "time",          "",            DATA_STRING, time_str,
+            "model",         "",            DATA_STRING, "Bresser 3CH sensor",
+            "id",            "",            DATA_INT,    id,
+            "channel",       "Channel",     DATA_INT,    channel,
+            "battery",       "Battery",     DATA_STRING, battery_low ? "LOW": "OK",
+            "temperature_F", "Temperature", DATA_FORMAT, "%.2f F", DATA_DOUBLE, temp_f,
+            "humidity",      "Humidity",    DATA_FORMAT, "%u %%", DATA_INT, humidity,
+            "mic",           "Integrity",   DATA_STRING, "CHECKSUM",
+            NULL);
     data_acquired_handler(data);
 
     return 1;
@@ -98,14 +97,17 @@ static char *output_fields[] = {
     "battery",
     "temperature_F",
     "humidity",
+    "mic",
     NULL
 };
 
 r_device bresser_3ch = {
     .name           = "Bresser Thermo-/Hygro-Sensor 3CH",
-    .modulation     = OOK_PULSE_PWM_RAW,
-    .short_limit    = 375,   // short pulse is ~250 us, long pulse is ~500 us
-    .long_limit     = 625,   // long gap (with short pulse) is ~500 us, sync gap is ~750 us
+    .modulation     = OOK_PULSE_PWM_PRECISE,
+    .short_limit    = 250,   // short pulse is ~250 us
+    .long_limit     = 500,   // long pulse is ~500 us
+    .sync_width     = 750,   // sync pulse is ~750 us
+    .gap_limit      = 625,   // long gap (with short pulse) is ~500 us, sync gap is ~750 us
     .reset_limit    = 1250,  // maximum gap is 1000 us (long gap + longer sync gap on last repeat)
     .json_callback  = &bresser_3ch_callback,
     .disabled       = 0,

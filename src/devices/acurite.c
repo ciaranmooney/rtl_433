@@ -213,11 +213,28 @@ static int acurite_5n1_getBatteryLevel(uint8_t byte){
 static int acurite_rain_gauge_callback(bitbuffer_t *bitbuffer) {
  	bitrow_t *bb = bitbuffer->bb;
    // This needs more validation to positively identify correct sensor type, but it basically works if message is really from acurite raingauge and it doesn't have any errors
-    if ((bb[0][0] != 0) && (bb[0][1] != 0) && (bb[0][2]!=0) && (bb[0][3] == 0) && (bb[0][4] == 0)) {
+    if ((bitbuffer->bits_per_row[0] >= 24) && (bb[0][0] != 0) && (bb[0][1] != 0) && (bb[0][2]!=0) && (bb[0][3] == 0) && (bb[0][4] == 0)) {
 	    float total_rain = ((bb[0][1]&0xf)<<8)+ bb[0][2];
 		total_rain /= 2; // Sensor reports number of bucket tips.  Each bucket tip is .5mm
-        fprintf(stdout, "AcuRite Rain Gauge Total Rain is %2.1fmm\n", total_rain);
-		fprintf(stdout, "Raw Message: %02x %02x %02x %02x %02x\n",bb[0][0],bb[0][1],bb[0][2],bb[0][3],bb[0][4]);
+
+		if (debug_output > 1) {
+			fprintf(stdout, "AcuRite Rain Gauge Total Rain is %2.1fmm\n", total_rain);
+			fprintf(stdout, "Raw Message (%d bits): %02x %02x %02x %02x %02x\n",bitbuffer->bits_per_row[0],bb[0][0],bb[0][1],bb[0][2],bb[0][3],bb[0][4]);
+		}
+
+		uint8_t id = bb[0][0];
+		data_t *data;
+		local_time_str(0, time_str);
+
+		data = data_make(
+			"time",	"",		DATA_STRING,	time_str,
+			"model",	"",		DATA_STRING,	"Acurite Rain Gauge",
+			"id",		"",		DATA_INT,	id,
+			"rain", 	"Total Rain",	DATA_FORMAT,	"%.1f mm", DATA_DOUBLE, total_rain,
+			NULL);
+
+		data_acquired_handler(data);
+
         return 1;
     }
     return 0;
@@ -442,7 +459,7 @@ static int acurite_6045_decode (bitrow_t bb, int browlen) {
 static int acurite_txr_callback(bitbuffer_t *bitbuf) {
     int browlen, valid = 0;
     uint8_t *bb;
-    float tempc, tempf, wind_dird, rainfall = 0.0, wind_speed, wind_speedmph;
+    float tempc, tempf, wind_dird, rainfall = 0.0, wind_speed_kph, wind_speed_mph;
     uint8_t humidity, sensor_status, sequence_num, message_type;
     char channel, *wind_dirstr = "";
     char channel_str[2];
@@ -451,8 +468,8 @@ static int acurite_txr_callback(bitbuffer_t *bitbuf) {
     uint8_t strike_count, strike_distance;
     data_t *data;
 
-
     local_time_str(0, time_str);
+    bitbuffer_invert(bitbuf);
 
     if (debug_output > 1) {
         fprintf(stderr,"acurite_txr\n");
@@ -532,7 +549,7 @@ static int acurite_txr_callback(bitbuffer_t *bitbuf) {
                 bb[0], bb[1], bb[2], bb[3], bb[4], bb[5], bb[6], bb[7]);
         }
 	    channel = acurite_getChannel(bb[0]);
-        sprintf(channel_str, "%c", channel);        
+        sprintf(channel_str, "%c", channel);
 	    sensor_id = acurite_5n1_getSensorId(bb[0],bb[1]);
 	    sequence_num = acurite_5n1_getMessageCaught(bb[0]);
 	    message_type = bb[2] & 0x3f;
@@ -540,15 +557,15 @@ static int acurite_txr_callback(bitbuffer_t *bitbuf) {
 
 	    if (message_type == ACURITE_MSGTYPE_WINDSPEED_WINDDIR_RAINFALL) {
             // Wind speed, wind direction, and rain fall
-            wind_speed = acurite_getWindSpeed_kph(bb[3], bb[4]);
-            wind_speedmph = kmph2mph(wind_speed);
+            wind_speed_kph = acurite_getWindSpeed_kph(bb[3], bb[4]);
+            wind_speed_mph = kmph2mph(wind_speed_kph);
             wind_dird = acurite_5n1_winddirections[bb[4] & 0x0f];
             wind_dirstr = acurite_5n1_winddirection_str[bb[4] & 0x0f];
             raincounter = acurite_getRainfallCounter(bb[5], bb[6]);
             if (acurite_5n1t_raincounter > 0) {
                 // track rainfall difference after first run
                 // FIXME when converting to structured output, just output
-                // the reading, let consumer track state/wrap around, etc. 
+                // the reading, let consumer track state/wrap around, etc.
                 rainfall = ( raincounter - acurite_5n1t_raincounter ) * 0.01;
                 if (raincounter < acurite_5n1t_raincounter) {
                     fprintf(stderr, "%s Acurite 5n1 sensor 0x%04X Ch %c, rain counter reset or wrapped around (old %d, new %d)\n",
@@ -561,19 +578,19 @@ static int acurite_txr_callback(bitbuffer_t *bitbuf) {
                 fprintf(stderr, "%s Acurite 5n1 sensor 0x%04X Ch %c, Total rain fall since last reset: %0.2f\n",
                 time_str, sensor_id, channel, raincounter * 0.01);
             }
-                
+
             data = data_make(
                 "time",         "",   DATA_STRING,    time_str,
                 "model",        "",   DATA_STRING,    "Acurite 5n1 sensor",
-                "sensor_id",    NULL,   DATA_FORMAT,    "0x%02X",   DATA_INT,       sensor_id,   
+                "sensor_id",    NULL,   DATA_FORMAT,    "0x%02X",   DATA_INT,       sensor_id,
                 "channel",      NULL,   DATA_STRING,    &channel_str,
                 "sequence_num",  NULL,   DATA_INT,      sequence_num,
                 "battery",      NULL,   DATA_STRING,    battery_low ? "OK" : "LOW",
                 "message_type", NULL,   DATA_INT,       message_type,
-                "wind_speed",   NULL,   DATA_FORMAT,    "%.1f mph", DATA_DOUBLE,     wind_speedmph,
+                "wind_speed_mph",   "wind_speed",   DATA_FORMAT,    "%.1f mph", DATA_DOUBLE,     wind_speed_mph,
                 "wind_dir_deg", NULL,   DATA_FORMAT,    "%.1f", DATA_DOUBLE,    wind_dird,
                 "wind_dir",     NULL,   DATA_STRING,    wind_dirstr,
-                "rainfall_accumulation",     NULL,   DATA_FORMAT,    "%.2f in", DATA_DOUBLE,    rainfall,
+                "rainfall_accumulation_inch", "rainfall_accumulation",   DATA_FORMAT,    "%.2f in", DATA_DOUBLE,    rainfall,
                 "raincounter_raw",  NULL,   DATA_INT,   raincounter,
                 NULL);
 
@@ -581,8 +598,8 @@ static int acurite_txr_callback(bitbuffer_t *bitbuf) {
 
 	    } else if (message_type == ACURITE_MSGTYPE_WINDSPEED_TEMP_HUMIDITY) {
             // Wind speed, temperature and humidity
-            wind_speed = acurite_getWindSpeed_kph(bb[3], bb[4]);
-            wind_speedmph = kmph2mph(wind_speed);
+            wind_speed_kph = acurite_getWindSpeed_kph(bb[3], bb[4]);
+            wind_speed_mph = kmph2mph(wind_speed_kph);
             tempf = acurite_getTemp(bb[4], bb[5]);
             tempc = fahrenheit2celsius(tempf);
             humidity = acurite_getHumidity(bb[6]);
@@ -590,17 +607,17 @@ static int acurite_txr_callback(bitbuffer_t *bitbuf) {
             data = data_make(
                 "time",         "",   DATA_STRING,    time_str,
                 "model",        "",   DATA_STRING,    "Acurite 5n1 sensor",
-                "sensor_id",    NULL,   DATA_FORMAT,    "0x%02X",   DATA_INT,       sensor_id,   
+                "sensor_id",    NULL,   DATA_FORMAT,    "0x%02X",   DATA_INT,       sensor_id,
                 "channel",      NULL,   DATA_STRING,    &channel_str,
                 "sequence_num",  NULL,   DATA_INT,      sequence_num,
                 "battery",      NULL,   DATA_STRING,    battery_low ? "OK" : "LOW",
                 "message_type", NULL,   DATA_INT,       message_type,
-                "wind_speed",   NULL,   DATA_FORMAT,    "%.1f mph", DATA_DOUBLE,     wind_speedmph,
+                "wind_speed_mph",   "wind_speed",   DATA_FORMAT,    "%.1f mph", DATA_DOUBLE,     wind_speed_mph,
                 "temperature_F", 	"temperature",	DATA_FORMAT,    "%.1f F", DATA_DOUBLE,    tempf,
                 "humidity",     NULL,	DATA_FORMAT,    "%d",   DATA_INT,   humidity,
                 NULL);
             data_acquired_handler(data);
-            
+
 	    } else {
             fprintf(stderr, "%s Acurite 5n1 sensor 0x%04X Ch %c, Status %02X, Unknown message type 0x%02x\n",
                 time_str, sensor_id, channel, bb[3], message_type);
@@ -823,7 +840,7 @@ static int acurite_606_callback(bitbuffer_t *bitbuf) {
         uint8_t chk = Checksum(3, &bb[1][0]);
 
         if (chk == bb[1][3]) {
-	    // Processing the temperature: 
+	    // Processing the temperature:
             // Upper 4 bits are stored in nibble 1, lower 8 bits are stored in nibble 2
             // upper 4 bits of nibble 1 are reserved for other usages (e.g. battery status)
       	    temp = (int16_t)((uint16_t)(bb[1][1] << 12) | (bb[1][2] << 4));
@@ -859,6 +876,7 @@ static int acurite_00275rm_callback(bitbuffer_t *bitbuf) {
     int     nsignal = 0;
 
     local_time_str(0, time_str);
+    bitbuffer_invert(bitbuf);
 
     if (debug_output > 1) {
         fprintf(stderr,"acurite_00275rm\n");
@@ -882,7 +900,7 @@ static int acurite_00275rm_callback(bitbuffer_t *bitbuf) {
     if (nsignal==3) {
         //  Combine signal copies so that majority bit count wins
         for (int i=0; i<11; i++) {
-            signal[0][i] = 
+            signal[0][i] =
                 (signal[0][i] & signal[1][i]) |
                 (signal[1][i] & signal[2][i]) |
                 (signal[2][i] & signal[0][i]);
@@ -915,7 +933,7 @@ static int acurite_00275rm_callback(bitbuffer_t *bitbuf) {
                     "battery",         "",             DATA_STRING,    battery_low ? "LOW" : "OK",
                     "temperature_C",   "Celcius",      DATA_FORMAT,    "%.1f C",  DATA_DOUBLE, tempc,
                     "humidity",        "Humidity",     DATA_INT,       humidity,
-                    "crc",             "",             DATA_STRING,    "ok",
+                    "mic",             "Integrity",    DATA_STRING,    "CRC",
 
                     NULL);
             //  Water probe (detects water leak)
@@ -930,11 +948,11 @@ static int acurite_00275rm_callback(bitbuffer_t *bitbuf) {
                     "temperature_C",   "Celcius",      DATA_FORMAT,    "%.1f C",  DATA_DOUBLE, tempc,
                     "humidity",        "Humidity",     DATA_INT,       humidity,
                     "water",           "",             DATA_INT,       water,
-                    "crc",             "",             DATA_STRING,    "ok",
+                    "mic",             "Integrity",    DATA_STRING,    "CRC",
                     NULL);
             //  Soil probe (detects temperature)
             } else if (probe==2) {
-                ptempc    = 0.1 * ( ((0x0f&signal[0][7])<<8) | signal[0][8] ) - 100; 
+                ptempc    = 0.1 * ( ((0x0f&signal[0][7])<<8) | signal[0][8] ) - 100;
                 data = data_make(
                     "time",            "",             DATA_STRING,    time_str,
                     "model",           "",             DATA_STRING,    model ? model1 : model2,
@@ -944,11 +962,11 @@ static int acurite_00275rm_callback(bitbuffer_t *bitbuf) {
                     "temperature_C",   "Celcius",      DATA_FORMAT,    "%.1f C",  DATA_DOUBLE, tempc,
                     "humidity",        "Humidity",     DATA_INT,       humidity,
                     "ptemperature_C",  "Celcius",      DATA_FORMAT,    "%.1f C",  DATA_DOUBLE, ptempc,
-                    "crc",             "",             DATA_STRING,    "ok",
+                    "mic",             "Integrity",    DATA_STRING,    "CRC",
                     NULL);
             //  Spot probe (detects temperature and humidity)
             } else if (probe==3) {
-                ptempc    = 0.1 * ( ((0x0f&signal[0][7])<<8) | signal[0][8] ) - 100; 
+                ptempc    = 0.1 * ( ((0x0f&signal[0][7])<<8) | signal[0][8] ) - 100;
                 phumidity = signal[0][9] & 0x7f;
                 data = data_make(
                     "time",            "",             DATA_STRING,    time_str,
@@ -960,8 +978,10 @@ static int acurite_00275rm_callback(bitbuffer_t *bitbuf) {
                     "humidity",        "Humidity",     DATA_INT,       humidity,
                     "ptemperature_C",  "Celcius",      DATA_FORMAT,    "%.1f C",  DATA_DOUBLE, ptempc,
                     "phumidity",       "Humidity",     DATA_INT,       phumidity,
-                    "crc",             "",             DATA_STRING,    "ok",
+                    "mic",             "Integrity",    DATA_STRING,    "CRC",
                     NULL);
+            } else { // suppress compiler warning
+                return 0;
             }
             data_acquired_handler(data);
             valid=1;
@@ -999,42 +1019,19 @@ r_device acurite_th = {
 /*
  * For Acurite 592 TXR Temp/Mumidity, but
  * Should match Acurite 592TX, 5-n-1, etc.
- *
- *
- * @todo, convert to use precise demodulator, after adding a flag
- *        to set "polarity" to flip short bits = 0 vs. 1.
  */
-
 r_device acurite_txr = {
     .name           = "Acurite 592TXR Temp/Humidity, 5n1 Weather Station, 6045 Lightning",
-    .modulation     = OOK_PULSE_PWM_TERNARY,
-    .short_limit    = 320,
-    .long_limit     = 520,
-    .reset_limit    = 4000,
+    .modulation     = OOK_PULSE_PWM_PRECISE,
+    .short_limit    = 220,  // short pulse is 220 us + 392 us gap
+    .long_limit     = 408,  // long pulse is 408 us + 204 us gap
+    .sync_width     = 620,  // sync pulse is 620 us + 596 us gap
+    .gap_limit      = 500,  // longest data gap is 392 us, sync gap is 596 us
+    .reset_limit    = 4000, // packet gap is 2192 us
     .json_callback  = &acurite_txr_callback,
     .disabled       = 1,
-    .demod_arg      = 2,
+    .demod_arg      = 0,    // not used
 };
-
-// @todo, find a set of values that will work reasonably
-// with a range of signal levels
-//
-// PWM_Precise_Parameters pwm_precise_param_acurite_txr = {
-// 	.pulse_tolerance	= 50,
-// 	.pulse_sync_width	= 170,
-// };
-
-//r_device acurite_txr = {
-//    .name           = "Acurite 592TXR Temp/Humidity sensor",
-//    .modulation     = OOK_PULSE_PWM_PRECISE,
-//    .short_limit    = 440,
-//    .long_limit     = 260,
-//    .reset_limit    = 4000,
-//    .json_callback  = &acurite_txr_callback,
-//    .disabled       = 0,
-//    .demod_arg      = (unsigned long)&pwm_precise_param_acurite_txr,
-//};
-
 
 /*
  * Acurite 00986 Refrigerator / Freezer Thermometer
@@ -1077,12 +1074,13 @@ r_device acurite_606 = {
 
 r_device acurite_00275rm = {
     .name           = "Acurite 00275rm,00276rm Temp/Humidity with optional probe",
-    .modulation     = OOK_PULSE_PWM_TERNARY,
-    .short_limit    = 320,  // = 4* 80,  80  is reported by -G option
-    .long_limit     = 520,  // = 4*130, 130  "
-  //  .reset_limit    = 608,  // = 4*152, 152  "
-    .reset_limit    = 708,  // = 4*152, 152  "
+    .modulation     = OOK_PULSE_PWM_PRECISE,
+    .short_limit    = 232,  // short pulse is 232 us
+    .long_limit     = 420,  // long pulse is 420 us
+    .gap_limit      = 520,  // long gap is 384 us, sync gap is 592 us
+    .reset_limit    = 708,  // no packet gap, sync gap is 592 us
+    .sync_width     = 632,  // sync pulse is 632 us
     .json_callback  = &acurite_00275rm_callback,
     .disabled       = 0,
-    .demod_arg      = 2,
+    .demod_arg      = 0,    // not used
 };

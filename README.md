@@ -14,9 +14,15 @@ Installation instructions:
 
 Compiling rtl_433 requires [rtl-sdr](http://sdr.osmocom.org/trac/wiki/rtl-sdr) to be installed.
 
-Depending on your system, you may also need to install the following libraries:
+Depending on your system, you may also need to install the following libraries.
+
+Debian:
 
     sudo apt-get install libtool libusb-1.0.0-dev librtlsdr-dev rtl-sdr
+
+Centos/Fedora/RHEL (for Centos/RHEL with enabled EPEL):
+
+    sudo dnf install libtool libusb-devel rtl-sdr-devel rtl-sdr
 
 Installation using cmake:
 
@@ -46,14 +52,17 @@ Running:
 ```
 Usage:	= Tuner options =
 	[-d <RTL-SDR USB device index>] (default: 0)
+	[-d :<RTL-SDR USB device serial (can be set with rtl_eeprom -s)>]
 	[-g <gain>] (default: 0 for auto)
 	[-f <frequency>] [-f...] Receive frequency(s) (default: 433920000 Hz)
+	[-H <seconds>] Hop interval for polling of multiple frequencies (default: 600 seconds)
 	[-p <ppm_error] Correct rtl-sdr tuner frequency offset error (default: 0)
 	[-s <sample rate>] Set sample rate (default: 250000 Hz)
 	[-S] Force sync output (default: async)
 	= Demodulator options =
 	[-R <device>] Enable only the specified device decoding protocol (can be used multiple times)
 	[-G] Enable all device protocols, included those disabled by default
+	[-X <spec> | help] Add a general purpose decoder (-R 0 to disable all other decoders)
 	[-l <level>] Change detection level used to determine pulses [0-16384] (0 = auto) (default: 0)
 	[-z <value>] Override short value in data decoder
 	[-x <value>] Override long value in data decoder
@@ -65,6 +74,7 @@ Usage:	= Tuner options =
 	[-D] Print debug info on event (repeat for more info)
 	[-q] Quiet mode, suppress non-data messages
 	[-W] Overwrite mode, disable checks to prevent files from being overwritten
+	[-y <code>] Verify decoding of demodulated test data (e.g. "{25}fb2dd58") with enabled devices
 	= File I/O options =
 	[-t] Test signal auto save. Use it together with analyze mode (-a -t). Creates one file per signal
 		 Note: Saves raw I/Q samples (uint8 pcm, 2 channel). Preferred mode for generating test files
@@ -76,9 +86,11 @@ Usage:	= Tuner options =
 		 3 = Raw I/Q samples (cf32, 2 channel)
 		 Note: If output file is specified, input will always be I/Q
 	[-F] kv|json|csv Produce decoded output in given format. Not yet supported by all drivers.
+		 append output to file with :<filename> (e.g. -F csv:log.csv), defaults to stdout.
 	[-C] native|si|customary Convert units in decoded output.
 	[-T] specify number of seconds to run
 	[-U] Print timestamps in UTC (this may also be accomplished by invocation with TZ environment variable set).
+	[-E] Stop after outputting successful event(s)
 	[<filename>] Save data stream to output file (a '-' dumps samples to stdout)
 
 Supported device protocols:
@@ -94,11 +106,11 @@ Supported device protocols:
     [10]* Acurite 896 Rain Gauge
     [11]  Acurite 609TXC Temperature and Humidity Sensor
     [12]  Oregon Scientific Weather Sensor
-    [13]  Mebus 433
+    [13]* Mebus 433
     [14]* Intertechno 433
     [15]  KlikAanKlikUit Wireless Switch
     [16]  AlectoV1 Weather Sensor (Alecto WS3500 WS4500 Ventus W155/W044 Oregon)
-    [17]* Cardin S466-TX2
+    [17]  Cardin S466-TX2
     [18]  Fine Offset Electronics, WH2 Temperature/Humidity Sensor
     [19]  Nexus Temperature & Humidity Sensor
     [20]  Ambient Weather Temperature Sensor
@@ -106,61 +118,84 @@ Supported device protocols:
     [22]* X10 RF
     [23]* DSC Security Contact
     [24]* Brennenstuhl RCS 2044
-    [25]* GT-WT-02 Sensor
+    [25]  GT-WT-02 Sensor
     [26]  Danfoss CFR Thermostat
     [27]* Energy Count 3000 (868.3 MHz)
     [28]* Valeo Car Key
     [29]  Chuango Security Technology
     [30]  Generic Remote SC226x EV1527
     [31]  TFA-Twin-Plus-30.3049 and Ea2 BL999
-    [32]  Fine Offset WH1080 Weather Station
+    [32]  Fine Offset Electronics WH1080/WH3080 Weather Station
     [33]  WT450
     [34]  LaCrosse WS-2310 Weather Station
     [35]  Esperanza EWS
-    [36]* Efergy e2 classic
-    [37]* Inovalley kw9015b rain and Temperature weather station
+    [36]  Efergy e2 classic
+    [37]* Inovalley kw9015b, TFA Dostmann 30.3161 (Rain and temperature sensor)
     [38]  Generic temperature sensor 1
-    [39]* Acurite 592TXR Temp/Humidity, 5n1 Weather Station, 6045 Lightning
-    [40]* Acurite 986 Refrigerator / Freezer Thermometer
-    [41]  HIDEKI TS04 Temperature, Humidity, Wind and Rain Sensor
-    [42]  Watchman Sonic / Apollo Ultrasonic / Beckett Rocket oil tank monitor
-    [43]  CurrentCost Current Sensor
-    [44]  emonTx OpenEnergyMonitor
-    [45]  HT680 Remote control
-    [46]  S3318P Temperature & Humidity Sensor
-    [47]  Akhan 100F14 remote keyless entry
-    [48]  Quhwa
-    [49]  OSv1 Temperature Sensor
-    [50]  Proove
-    [51]  Bresser Thermo-/Hygro-Sensor 3CH
-    [52]  Springfield Temperature and Soil Moisture
-    [53]  Oregon Scientific SL109H Remote Thermal Hygro Sensor
-    [54]  Acurite 606TX Temperature Sensor
-    [55]  TFA pool temperature sensor
-    [56]  Kedsum Temperature & Humidity Sensor
-    [57]  blyss DC5-UK-WH (433.92 MHz)
-    [58]  Steelmate TPMS
-    [59]  Schraeder TPMS
-    [60]* LightwaveRF
-    [61]  Elro DB286A Doorbell
-    [62]  Efergy Optical
-    [63]  Honda Car Key
-    [64]* Template decoder
-    [65]  Fine Offset Electronics, XC0400
-    [66]  Radiohead ASK
-    [67]  Kerui PIR Sensor
-    [68]  Fine Offset WH1050 Weather Station
-    [69]  Honeywell Door/Window Sensor
-    [70]  Maverick ET-732/733 BBQ Sensor
-    [71]* RF-tech
-    [72]  LaCrosse TX141TH-Bv2 sensor
-    [73]  Acurite 00275rm,00276rm Temp/Humidity with optional probe
-    [74]  LaCrosse TX35DTH-IT Temperature sensor
-    [75]  LaCrosse TX29IT Temperature sensor
-    [76]  Fine Offset Electronics, WH25 Temperature/Humidity/Pressure Sensor
-    [77]  Fine Offset Electronics, WH0530 Temperature/Rain Sensor
+    [39]  WG-PB12V1
+    [40]* Acurite 592TXR Temp/Humidity, 5n1 Weather Station, 6045 Lightning
+    [41]* Acurite 986 Refrigerator / Freezer Thermometer
+    [42]  HIDEKI TS04 Temperature, Humidity, Wind and Rain Sensor
+    [43]  Watchman Sonic / Apollo Ultrasonic / Beckett Rocket oil tank monitor
+    [44]  CurrentCost Current Sensor
+    [45]  emonTx OpenEnergyMonitor
+    [46]  HT680 Remote control
+    [47]  S3318P Temperature & Humidity Sensor
+    [48]  Akhan 100F14 remote keyless entry
+    [49]  Quhwa
+    [50]  OSv1 Temperature Sensor
+    [51]  Proove
+    [52]  Bresser Thermo-/Hygro-Sensor 3CH
+    [53]  Springfield Temperature and Soil Moisture
+    [54]  Oregon Scientific SL109H Remote Thermal Hygro Sensor
+    [55]  Acurite 606TX Temperature Sensor
+    [56]  TFA pool temperature sensor
+    [57]  Kedsum Temperature & Humidity Sensor
+    [58]  blyss DC5-UK-WH (433.92 MHz)
+    [59]  Steelmate TPMS
+    [60]  Schrader TPMS
+    [61]* LightwaveRF
+    [62]  Elro DB286A Doorbell
+    [63]  Efergy Optical
+    [64]  Honda Car Key
+    [65]* Template decoder
+    [66]  Fine Offset Electronics, XC0400
+    [67]  Radiohead ASK
+    [68]  Kerui PIR Sensor
+    [69]  Fine Offset WH1050 Weather Station
+    [70]  Honeywell Door/Window Sensor
+    [71]  Maverick ET-732/733 BBQ Sensor
+    [72]* RF-tech
+    [73]  LaCrosse TX141-Bv2/TX141TH-Bv2 sensor
+    [74]  Acurite 00275rm,00276rm Temp/Humidity with optional probe
+    [75]  LaCrosse TX35DTH-IT Temperature sensor
+    [76]  LaCrosse TX29IT Temperature sensor
+    [77]  Vaillant calorMatic 340f Central Heating Control
+    [78]  Fine Offset Electronics, WH25 Temperature/Humidity/Pressure Sensor
+    [79]  Fine Offset Electronics, WH0530 Temperature/Rain Sensor
+    [80]  IBIS beacon
+    [81]  Oil Ultrasonic STANDARD FSK
+    [82]  Citroen TPMS
+    [83]  Oil Ultrasonic STANDARD ASK
+    [84]  Thermopro TP11 Thermometer
+    [85]  Solight TE44
+    [86]  Wireless Smoke and Heat Detector GS 558
+    [87]  Generic wireless motion sensor
+    [88]  Toyota TPMS
+    [89]  Ford TPMS
+    [90]  Renault TPMS
+    [91]* inFactory
+    [92]  FT-004-B Temperature Sensor
+    [93]  Ford Car Key
+    [94]  Philips outdoor temperature sensor
+    [95]  Schrader TPMS EG53MA4
+    [96]  Nexa
+    [97]  Thermopro TP12 Thermometer
+    [98]  GE Color Effects
+    [99]  X10 Security
 
 * Disabled by default, use -R n or -G
+
 ```
 
 
@@ -172,10 +207,11 @@ Examples:
 | `rtl_433 -p NN -R 1 -R 9 -R 36 -R 40` | Typical usage: Enable device decoders for desired devices. Correct rtl-sdr tuning error (ppm offset).
 | `rtl_433 -a` | Will run in analyze mode and you will get a text description of the received signal.
 | `rtl_433 -A` | Enable pulse analyzer. Summarizes the timings of pulses, gaps, and periods. Can be used in either the normal decode mode, or analyze mode.
-| `rtl_433 -a -t` | Will run in analyze mode and save a test file per detected signal (gfile###.data). Format is uint8, 2 channels.
-| `rtl_433 -r file_name` | Play back a saved data file. 
+| `rtl_433 -a -t` | Will run in analyze mode and save a test file per detected signal (`g###_###M_###k.cu8`). Format is uint8, 2 channels.
+| `rtl_433 -r file_name` | Play back a saved data file.
 | `rtl_433 file_name` | Will save everything received from the rtl-sdr during the session into a single file. The saves file may become quite large depending on how long rtl_433 is left running. Note: saving signals into individual files wint `rtl_433 -a -t` is preferred.
-| `rtl_433 -F json -U | mosquitto_pub -t home/rtl_433 -l` | Will pipe the output to network as JSON formatted MQTT messages. A test MQTT client can be found in `tests/mqtt_rtl_433_test.py`.
+| `rtl_433 -F json -U \| mosquitto_pub -t home/rtl_433 -l` | Will pipe the output to network as JSON formatted MQTT messages. A test MQTT client can be found in `tests/mqtt_rtl_433_test.py`.
+| `rtl_433 -f 433535000 -f 434019000 -H 15` | Will poll two frequencies with 15 seconds interval.
 
 This software is mostly useable for developers right now.
 
@@ -187,10 +223,10 @@ Note: Not all device protocol decoders are enabled by default. When testing to s
 is decoded by rtl_433, use `-G` to enable all device protocols.
 
 The first step in decoding new devices is to record the signals using `-a -t`. The signals will be
-stored individually in files named gfileNNN.data that can be played back with `rtl_433 -r gfileNNN.data`.
+stored individually in files named gNNN_FFFM_RRRk.cu8 that can be played back with `rtl_433 -r gNNN_FFFM_RRRk.cu8`.
 
 These files are vital for understanding the signal format as well as the message data.  Use both analyzers
-`-a` and `-A` to look at the recorded signal and determine the pulse characteristics, e.g. `rtl_433 -r gfileNNN.data -a -A`.
+`-a` and `-A` to look at the recorded signal and determine the pulse characteristics, e.g. `rtl_433 -r gNNN_FFFM_RRRk.cu8 -a -A`.
 
 Make sure you have recorded a proper set of test signals representing different conditions together
 with any and all information about the values that the signal should represent. For example, make a
@@ -227,4 +263,3 @@ If you see this error:
 then
 
     sudo rmmod dvb_usb_rtl28xxu rtl2832
-    
